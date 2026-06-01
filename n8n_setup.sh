@@ -25,11 +25,6 @@ if [ "$EUID" -ne 0 ]; then
     error "Запустіть від імені root: sudo bash n8n_setup.sh"
 fi
 
-# ---------- Fix stdin for curl | bash ----------
-# When piped through curl, stdin is the pipe not the terminal.
-# This redirects stdin back to the terminal so read commands work.
-exec < /dev/tty
-
 # ---------- Banner ----------
 echo -e "${CYAN}"
 echo "  ███╗   ██╗ █████╗ ███╗   ██╗    ███████╗███████╗████████╗██╗   ██╗██████╗ "
@@ -43,22 +38,25 @@ echo "  Налаштування VPS для воркшопу — n8n + Caddy + D
 echo ""
 
 # ---------- Gather input ----------
+# Note: </dev/tty on each read is required when script is piped via curl | bash
+# Without it, read gets EOF immediately because stdin is the pipe, not the terminal
+
 step "Налаштування"
 
-read -rp "  Введіть ваш домен (напр. yourname.duckdns.org): " DOMAIN
+read -rp "  Введіть ваш домен (напр. yourname.duckdns.org): " DOMAIN </dev/tty
 if [ -z "$DOMAIN" ]; then
     error "Домен не може бути порожнім"
 fi
 
-read -rp "  Введіть email для SSL-сертифіката: " EMAIL
+read -rp "  Введіть email для SSL-сертифіката: " EMAIL </dev/tty
 if [ -z "$EMAIL" ]; then
     error "Email не може бути порожнім"
 fi
 
-read -rp "  Логін адміністратора n8n (Enter = admin): " N8N_USER
+read -rp "  Логін адміністратора n8n (Enter = admin): " N8N_USER </dev/tty
 N8N_USER=${N8N_USER:-admin}
 
-read -rsp "  Пароль адміністратора n8n: " N8N_PASS
+read -rsp "  Пароль адміністратора n8n: " N8N_PASS </dev/tty
 echo ""
 if [ -z "$N8N_PASS" ]; then
     error "Пароль не може бути порожнім"
@@ -69,7 +67,7 @@ info "Домен:        $DOMAIN"
 info "Email:        $EMAIL"
 info "Користувач:   $N8N_USER"
 echo ""
-read -rp "  Продовжити встановлення? (y/N): " CONFIRM
+read -rp "  Продовжити встановлення? (y/N): " CONFIRM </dev/tty
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
     echo "Скасовано."
     exit 0
