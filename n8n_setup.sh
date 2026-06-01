@@ -25,6 +25,11 @@ if [ "$EUID" -ne 0 ]; then
     error "Запустіть від імені root: sudo bash n8n_setup.sh"
 fi
 
+# ---------- Fix stdin for curl | bash ----------
+# When piped through curl, stdin is the pipe not the terminal.
+# This redirects stdin back to the terminal so read commands work.
+exec < /dev/tty
+
 # ---------- Banner ----------
 echo -e "${CYAN}"
 echo "  ███╗   ██╗ █████╗ ███╗   ██╗    ███████╗███████╗████████╗██╗   ██╗██████╗ "
