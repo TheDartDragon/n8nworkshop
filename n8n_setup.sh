@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================
 #  n8n Workshop Setup Script
-#  Installs: Docker, n8n, Caddy (auto SSL reverse proxy)
-#  OS: Ubuntu 22.04 / 24.04 or Debian 12
-#  Usage: sudo bash n8n_setup.sh
+#  Встановлює: Docker, n8n, Caddy (авто SSL reverse proxy)
+#  ОС: Ubuntu 22.04 / 24.04 або Debian 12
+#  Використання: sudo bash n8n_setup.sh
 # ============================================================
 
 set -e
@@ -22,7 +22,7 @@ step()  { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 
 # ---------- Root check ----------
 if [ "$EUID" -ne 0 ]; then
-    error "Run as root: sudo bash n8n_setup.sh"
+    error "Запустіть від імені root: sudo bash n8n_setup.sh"
 fi
 
 # ---------- Banner ----------
@@ -34,64 +34,64 @@ echo "  ██║╚██╗██║██╔══██╗██║╚██
 echo "  ██║ ╚████║╚█████╔╝██║ ╚████║    ███████║███████╗   ██║   ╚██████╔╝██║     "
 echo "  ╚═╝  ╚═══╝ ╚════╝ ╚═╝  ╚═══╝    ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝     "
 echo -e "${NC}"
-echo "  Workshop VPS Setup — n8n + Caddy + Docker"
+echo "  Налаштування VPS для воркшопу — n8n + Caddy + Docker"
 echo ""
 
 # ---------- Gather input ----------
-step "Configuration"
+step "Налаштування"
 
-read -rp "  Enter your domain (e.g. n8n.yourdomain.com or yourname.duckdns.org): " DOMAIN
+read -rp "  Введіть ваш домен (напр. yourname.duckdns.org): " DOMAIN
 if [ -z "$DOMAIN" ]; then
-    error "Domain cannot be empty"
+    error "Домен не може бути порожнім"
 fi
 
-read -rp "  Enter your email for SSL certificate: " EMAIL
+read -rp "  Введіть email для SSL-сертифіката: " EMAIL
 if [ -z "$EMAIL" ]; then
-    error "Email cannot be empty"
+    error "Email не може бути порожнім"
 fi
 
-read -rp "  Set n8n admin username: " N8N_USER
+read -rp "  Логін адміністратора n8n (Enter = admin): " N8N_USER
 N8N_USER=${N8N_USER:-admin}
 
-read -rsp "  Set n8n admin password: " N8N_PASS
+read -rsp "  Пароль адміністратора n8n: " N8N_PASS
 echo ""
 if [ -z "$N8N_PASS" ]; then
-    error "Password cannot be empty"
+    error "Пароль не може бути порожнім"
 fi
 
 echo ""
-info "Domain:   $DOMAIN"
-info "Email:    $EMAIL"
-info "n8n user: $N8N_USER"
+info "Домен:        $DOMAIN"
+info "Email:        $EMAIL"
+info "Користувач:   $N8N_USER"
 echo ""
-read -rp "  Proceed with installation? (y/N): " CONFIRM
+read -rp "  Продовжити встановлення? (y/N): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
+    echo "Скасовано."
     exit 0
 fi
 
 # ---------- System update ----------
-step "System Update"
+step "Оновлення системи"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq curl wget git ufw
-info "System updated"
+info "Систему оновлено"
 
 # ---------- Swap (important for 2GB RAM) ----------
-step "Swap File"
+step "Файл підкачки"
 if [ ! -f /swapfile ]; then
     fallocate -l 1G /swapfile
     chmod 600 /swapfile
     mkswap /swapfile
     swapon /swapfile
     echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    info "1GB swap created"
+    info "Створено файл підкачки 1GB"
 else
-    warn "Swap already exists, skipping"
+    warn "Файл підкачки вже існує, пропускаємо"
 fi
 
 # ---------- Firewall ----------
-step "Firewall (UFW)"
+step "Брандмауер (UFW)"
 ufw --force reset > /dev/null
 ufw default deny incoming
 ufw default allow outgoing
@@ -99,28 +99,27 @@ ufw allow 22/tcp    comment "SSH"
 ufw allow 80/tcp    comment "HTTP (Caddy redirect)"
 ufw allow 443/tcp   comment "HTTPS (n8n)"
 ufw --force enable
-info "Firewall configured (22, 80, 443)"
+info "Брандмауер налаштовано (порти: 22, 80, 443)"
 
 # ---------- Docker ----------
-step "Docker Installation"
+step "Встановлення Docker"
 if command -v docker &> /dev/null; then
-    warn "Docker already installed, skipping"
+    warn "Docker вже встановлено, пропускаємо"
 else
     curl -fsSL https://get.docker.com | sh
-    info "Docker installed"
+    info "Docker встановлено"
 fi
 
-# Enable Docker service
 systemctl enable docker --quiet
 systemctl start docker
-info "Docker service started"
+info "Сервіс Docker запущено"
 
 # ---------- Create n8n directory ----------
-step "n8n Configuration"
+step "Конфігурація n8n"
 N8N_DIR=/opt/n8n
 mkdir -p "$N8N_DIR"
 cd "$N8N_DIR"
-info "Working directory: $N8N_DIR"
+info "Робоча директорія: $N8N_DIR"
 
 # ---------- docker-compose.yml ----------
 cat > docker-compose.yml << EOF
@@ -168,12 +167,12 @@ volumes:
   n8n_data:
 EOF
 
-info "docker-compose.yml created"
+info "Файл docker-compose.yml створено"
 
 # ---------- Caddyfile ----------
 cat > Caddyfile << EOF
 ${DOMAIN} {
-    # Automatic HTTPS via Let's Encrypt
+    # Автоматичний HTTPS через Let's Encrypt
     tls ${EMAIL}
 
     reverse_proxy n8n:5678 {
@@ -189,21 +188,21 @@ ${DOMAIN} {
 }
 EOF
 
-info "Caddyfile created"
+info "Caddyfile створено"
 
 # ---------- Launch ----------
-step "Starting Services"
+step "Запуск сервісів"
 docker compose pull --quiet
 docker compose up -d
-info "Containers started"
+info "Контейнери запущено"
 
 # ---------- Wait for n8n to be ready ----------
-step "Waiting for n8n"
-echo -n "  Checking n8n health"
+step "Очікування запуску n8n"
+echo -n "  Перевірка стану n8n"
 for i in {1..30}; do
     if docker compose exec -T n8n wget -q --spider http://localhost:5678/healthz 2>/dev/null; then
         echo ""
-        info "n8n is up"
+        info "n8n працює"
         break
     fi
     echo -n "."
@@ -213,19 +212,19 @@ done
 # ---------- Done ----------
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  Installation complete!${NC}"
+echo -e "${GREEN}  Встановлення завершено!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "  URL:      ${CYAN}https://${DOMAIN}${NC}"
-echo -e "  User:     ${CYAN}${N8N_USER}${NC}"
-echo -e "  Password: ${CYAN}(what you entered)${NC}"
+echo -e "  Адреса:       ${CYAN}https://${DOMAIN}${NC}"
+echo -e "  Користувач:   ${CYAN}${N8N_USER}${NC}"
+echo -e "  Пароль:       ${CYAN}(той, що ввели)${NC}"
 echo ""
-echo -e "  ${YELLOW}Note: SSL certificate may take 1-2 minutes to provision${NC}"
-echo -e "  ${YELLOW}If the page doesn't load immediately, wait and refresh${NC}"
+echo -e "  ${YELLOW}Примітка: SSL-сертифікат може видаватися 1-2 хвилини${NC}"
+echo -e "  ${YELLOW}Якщо сторінка не відкривається одразу — зачекайте і оновіть${NC}"
 echo ""
-echo "  Useful commands:"
+echo "  Корисні команди:"
 echo "    cd /opt/n8n"
-echo "    docker compose logs -f        # view logs"
-echo "    docker compose restart        # restart services"
-echo "    docker compose down           # stop everything"
+echo "    docker compose logs -f        # переглянути логи"
+echo "    docker compose restart        # перезапустити сервіси"
+echo "    docker compose down           # зупинити все"
 echo ""
