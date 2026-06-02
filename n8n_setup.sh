@@ -8,7 +8,6 @@
 
 set -e
 
-# ---------- Colors ----------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -20,12 +19,10 @@ warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 step()  { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 
-# ---------- Root check ----------
 if [ "$EUID" -ne 0 ]; then
     error "Запустіть від імені root: sudo bash n8n_setup.sh"
 fi
 
-# ---------- Banner ----------
 echo -e "${CYAN}"
 echo "  ███╗   ██╗ █████╗ ███╗   ██╗    ███████╗███████╗████████╗██╗   ██╗██████╗ "
 echo "  ████╗  ██║██╔══██╗████╗  ██║    ██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗"
@@ -37,13 +34,9 @@ echo -e "${NC}"
 echo "  Налаштування VPS для воркшопу — n8n + Caddy + Docker"
 echo ""
 
-# ---------- Gather input ----------
-# Note: </dev/tty on each read is required when script is piped via curl | bash
-# Without it, read gets EOF immediately because stdin is the pipe, not the terminal
-
 step "Налаштування"
 
-read -rp "  Введіть ваш домен (напр. yourname.duckdns.org): " DOMAIN </dev/tty
+read -rp "  Введіть ваш домен (напр. myn8nserver.duckdns.org): " DOMAIN </dev/tty
 if [ -z "$DOMAIN" ]; then
     error "Домен не може бути порожнім"
 fi
@@ -53,19 +46,9 @@ if [ -z "$EMAIL" ]; then
     error "Email не може бути порожнім"
 fi
 
-read -rp "  Логін адміністратора n8n (Enter = admin): " N8N_USER </dev/tty
-N8N_USER=${N8N_USER:-admin}
-
-read -rsp "  Пароль адміністратора n8n: " N8N_PASS </dev/tty
 echo ""
-if [ -z "$N8N_PASS" ]; then
-    error "Пароль не може бути порожнім"
-fi
-
-echo ""
-info "Домен:        $DOMAIN"
-info "Email:        $EMAIL"
-info "Користувач:   $N8N_USER"
+info "Домен:   $DOMAIN"
+info "Email:   $EMAIL"
 echo ""
 read -rp "  Продовжити встановлення? (y/N): " CONFIRM </dev/tty
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
@@ -73,14 +56,12 @@ if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# ---------- System update ----------
 step "Оновлення системи"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq curl wget git ufw
 info "Систему оновлено"
 
-# ---------- Swap (important for 2GB RAM) ----------
 step "Файл підкачки"
 if [ ! -f /swapfile ]; then
     fallocate -l 1G /swapfile
@@ -93,7 +74,6 @@ else
     warn "Файл підкачки вже існує, пропускаємо"
 fi
 
-# ---------- Firewall ----------
 step "Брандмауер (UFW)"
 ufw --force reset > /dev/null
 ufw default deny incoming
@@ -104,7 +84,6 @@ ufw allow 443/tcp   comment "HTTPS (n8n)"
 ufw --force enable
 info "Брандмауер налаштовано (порти: 22, 80, 443)"
 
-# ---------- Docker ----------
 step "Встановлення Docker"
 if command -v docker &> /dev/null; then
     warn "Docker вже встановлено, пропускаємо"
@@ -117,14 +96,12 @@ systemctl enable docker --quiet
 systemctl start docker
 info "Сервіс Docker запущено"
 
-# ---------- Create n8n directory ----------
 step "Конфігурація n8n"
 N8N_DIR=/opt/n8n
 mkdir -p "$N8N_DIR"
 cd "$N8N_DIR"
 info "Робоча директорія: $N8N_DIR"
 
-# ---------- docker-compose.yml ----------
 cat > docker-compose.yml << EOF
 version: '3.8'
 
@@ -155,9 +132,6 @@ services:
       - WEBHOOK_URL=https://${DOMAIN}/
       - GENERIC_TIMEZONE=Europe/Kyiv
       - TZ=Europe/Kyiv
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASS}
       - N8N_RUNNERS_ENABLED=true
     volumes:
       - n8n_data:/home/node/.n8n
@@ -172,17 +146,14 @@ EOF
 
 info "Файл docker-compose.yml створено"
 
-# ---------- Caddyfile ----------
 cat > Caddyfile << EOF
 ${DOMAIN} {
-    # Автоматичний HTTPS через Let's Encrypt
     tls ${EMAIL}
 
     reverse_proxy n8n:5678 {
         flush_interval -1
     }
 
-    # Security headers
     header {
         X-Frame-Options SAMEORIGIN
         X-Content-Type-Options nosniff
@@ -193,13 +164,11 @@ EOF
 
 info "Caddyfile створено"
 
-# ---------- Launch ----------
 step "Запуск сервісів"
 docker compose pull --quiet
 docker compose up -d
 info "Контейнери запущено"
 
-# ---------- Wait for n8n to be ready ----------
 step "Очікування запуску n8n"
 echo -n "  Перевірка стану n8n"
 for i in {1..30}; do
@@ -212,18 +181,15 @@ for i in {1..30}; do
     sleep 2
 done
 
-# ---------- Done ----------
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  Встановлення завершено!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "  Адреса:       ${CYAN}https://${DOMAIN}${NC}"
-echo -e "  Користувач:   ${CYAN}${N8N_USER}${NC}"
-echo -e "  Пароль:       ${CYAN}(той, що ввели)${NC}"
+echo -e "  Адреса:   ${CYAN}https://${DOMAIN}${NC}"
 echo ""
 echo -e "  ${YELLOW}Примітка: SSL-сертифікат може видаватися 1-2 хвилини${NC}"
-echo -e "  ${YELLOW}Якщо сторінка не відкривається одразу — зачекайте і оновіть${NC}"
+echo -e "  ${YELLOW}При першому відкритті n8n запропонує створити акаунт власника${NC}"
 echo ""
 echo "  Корисні команди:"
 echo "    cd /opt/n8n"
